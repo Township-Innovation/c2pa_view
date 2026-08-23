@@ -1,5 +1,4 @@
 import 'dart:convert';
-import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:c2pa_view/src/rust/api/c2pa.dart';
@@ -15,23 +14,17 @@ String? _manifestJsonFromUtf8Bytes(final Uint8List? bytes) =>
 /// list (concatenated C2PA CA + TSA PEM bundle); otherwise the underlying
 /// `c2pa-rs` defaults are used and certificates report as `untrusted`.
 // ignore: type_annotate_public_apis
-String? getManifestJsonFromFile(
+Future<String?> getManifestJsonFromFile(
   final String path, {
   final String? trustAnchorsPem,
-}) {
-  final file = File(path);
-  final bytes = file.readAsBytesSync();
+}) async {
   if (trustAnchorsPem != null && trustAnchorsPem.isNotEmpty) {
     return getManifestWithTrustValidationFromPath(
-      fileBytes: bytes,
-      path: file.path,
+      path: path,
       trustAnchorsPem: trustAnchorsPem,
     );
   }
-  return getManifestWithValidationFromPath(
-    fileBytes: bytes,
-    path: file.path,
-  );
+  return getManifestWithValidationFromPath(path: path);
 }
 
 /// Get the manifest from a URL.
@@ -61,11 +54,11 @@ Future<String?> getManifestJsonFromURL(
 /// Get the manifest from bytes and format (mime type).
 ///
 /// See [getManifestJsonFromFile] for the meaning of [trustAnchorsPem].
-String? getManifestJsonFromBytes({
+Future<String?> getManifestJsonFromBytes({
   required final List<int> fileBytes,
   required final String format,
   final String? trustAnchorsPem,
-}) {
+}) async {
   if (trustAnchorsPem != null && trustAnchorsPem.isNotEmpty) {
     return getManifestWithTrustValidation(
       fileBytes: fileBytes,
@@ -79,7 +72,7 @@ String? getManifestJsonFromBytes({
     );
   }
   try {
-    final raw = getManifestWithValidationUtf8(
+    final raw = await getManifestWithValidationUtf8(
       fileBytes: fileBytes,
       format: format,
     );
@@ -103,11 +96,11 @@ String? getManifestJsonFromBytes({
 ///
 /// Unlike [getManifestJsonFromBytes], does not treat [fileBytes] as the asset
 /// under validation — detached L1 manifest-store bytes skip data_hash binding.
-String? getManifestStoreJsonFromBytes({
+Future<String?> getManifestStoreJsonFromBytes({
   required final List<int> fileBytes,
   required final String format,
-}) {
+}) async {
   return _manifestJsonFromUtf8Bytes(
-    getFileManifestFormatUtf8(fileBytes: fileBytes, format: format),
+    await getFileManifestFormatUtf8(fileBytes: fileBytes, format: format),
   );
 }

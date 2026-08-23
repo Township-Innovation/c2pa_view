@@ -6,15 +6,17 @@
 import '../frb_generated.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
-// These functions are ignored because they are not marked as `pub`: `normalize_detached_manifest_format`, `reader_manifest_json_value`
+// These functions are ignored because they are not marked as `pub`: `mime_type_from_path`, `normalize_detached_manifest_format`, `read_path_bytes`, `reader_manifest_json_value`
 
-String? getFileManifest({required List<int> fileBytes, required String path}) =>
-    RustLib.instance.api.crateApiC2PaGetFileManifest(
-      fileBytes: fileBytes,
-      path: path,
-    );
+Future<String?> getFileManifest({
+  required List<int> fileBytes,
+  required String path,
+}) => RustLib.instance.api.crateApiC2PaGetFileManifest(
+  fileBytes: fileBytes,
+  path: path,
+);
 
-String? getFileManifestFormat({
+Future<String?> getFileManifestFormat({
   required List<int> fileBytes,
   required String format,
 }) => RustLib.instance.api.crateApiC2PaGetFileManifestFormat(
@@ -24,7 +26,7 @@ String? getFileManifestFormat({
 
 /// UTF-8 JSON bytes for [`get_file_manifest_format`]. See
 /// [`get_manifest_with_validation_utf8`] for the web FRB rationale.
-Uint8List? getFileManifestFormatUtf8({
+Future<Uint8List?> getFileManifestFormatUtf8({
   required List<int> fileBytes,
   required String format,
 }) => RustLib.instance.api.crateApiC2PaGetFileManifestFormatUtf8(
@@ -32,7 +34,7 @@ Uint8List? getFileManifestFormatUtf8({
   format: format,
 );
 
-String? getManifestWithValidation({
+Future<String?> getManifestWithValidation({
   required List<int> fileBytes,
   required String format,
 }) => RustLib.instance.api.crateApiC2PaGetManifestWithValidation(
@@ -45,7 +47,7 @@ String? getManifestWithValidation({
 /// Web FRB sync can fail to decode very large [`String`] returns from WASM
 /// (Dart `TypeError` on DCO decode). Callers should `utf8.decode` on the VM
 /// or web.
-Uint8List? getManifestWithValidationUtf8({
+Future<Uint8List?> getManifestWithValidationUtf8({
   required List<int> fileBytes,
   required String format,
 }) => RustLib.instance.api.crateApiC2PaGetManifestWithValidationUtf8(
@@ -53,19 +55,16 @@ Uint8List? getManifestWithValidationUtf8({
   format: format,
 );
 
-String? getManifestWithValidationFromPath({
-  required List<int> fileBytes,
-  required String path,
-}) => RustLib.instance.api.crateApiC2PaGetManifestWithValidationFromPath(
-  fileBytes: fileBytes,
-  path: path,
-);
+Future<String?> getManifestWithValidationFromPath({required String path}) =>
+    RustLib.instance.api.crateApiC2PaGetManifestWithValidationFromPath(
+      path: path,
+    );
 
 /// Validate a C2PA asset against provided trust anchor PEM bundles.
 ///
 /// `trust_anchors_pem` should contain the C2PA Trust List and optionally
 /// the TSA Trust List concatenated as a single PEM bundle.
-String? getManifestWithTrustValidation({
+Future<String?> getManifestWithTrustValidation({
   required List<int> fileBytes,
   required String format,
   required String trustAnchorsPem,
@@ -75,13 +74,12 @@ String? getManifestWithTrustValidation({
   trustAnchorsPem: trustAnchorsPem,
 );
 
-/// Convenience wrapper that guesses MIME from file path.
-String? getManifestWithTrustValidationFromPath({
-  required List<int> fileBytes,
+/// Convenience wrapper that guesses MIME from file path and reads bytes on the
+/// Rust side.
+Future<String?> getManifestWithTrustValidationFromPath({
   required String path,
   required String trustAnchorsPem,
 }) => RustLib.instance.api.crateApiC2PaGetManifestWithTrustValidationFromPath(
-  fileBytes: fileBytes,
   path: path,
   trustAnchorsPem: trustAnchorsPem,
 );

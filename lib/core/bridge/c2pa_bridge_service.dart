@@ -1,5 +1,4 @@
 import 'dart:convert';
-import 'dart:io';
 
 import 'package:c2pa_view/domain/entities/manifest_store.dart';
 import 'package:c2pa_view/src/rust/api/c2pa.dart';
@@ -12,22 +11,17 @@ import 'package:http/http.dart' as http;
 /// runs against that trust list; otherwise the default (no trust list) is used.
 class C2paBridgeService {
   /// Get raw manifest JSON from a local file path.
-  static String? getManifestJsonFromFile(
+  static Future<String?> getManifestJsonFromFile(
     final String path, {
     final String? trustAnchorsPem,
-  }) {
-    final file = File(path);
+  }) async {
     if (trustAnchorsPem != null) {
       return getManifestWithTrustValidationFromPath(
-        fileBytes: file.readAsBytesSync(),
-        path: file.path,
+        path: path,
         trustAnchorsPem: trustAnchorsPem,
       );
     }
-    return getManifestWithValidationFromPath(
-      fileBytes: file.readAsBytesSync(),
-      path: file.path,
-    );
+    return getManifestWithValidationFromPath(path: path);
   }
 
   /// Get raw manifest JSON from a URL.
@@ -53,11 +47,11 @@ class C2paBridgeService {
   }
 
   /// Get raw manifest JSON from bytes.
-  static String? getManifestJsonFromBytes({
+  static Future<String?> getManifestJsonFromBytes({
     required final List<int> fileBytes,
     required final String format,
     final String? trustAnchorsPem,
-  }) {
+  }) async {
     if (trustAnchorsPem != null) {
       return getManifestWithTrustValidation(
         fileBytes: fileBytes,
@@ -69,12 +63,12 @@ class C2paBridgeService {
   }
 
   /// Load a [ManifestStore] from a local file path.
-  static ManifestStore? loadFromFile(
+  static Future<ManifestStore?> loadFromFile(
     final String path, {
     final String? trustAnchorsPem,
-  }) {
+  }) async {
     final json =
-        getManifestJsonFromFile(path, trustAnchorsPem: trustAnchorsPem);
+        await getManifestJsonFromFile(path, trustAnchorsPem: trustAnchorsPem);
     if (json == null) {
       return null;
     }
@@ -99,12 +93,12 @@ class C2paBridgeService {
   }
 
   /// Load a [ManifestStore] from raw bytes.
-  static ManifestStore? loadFromBytes({
+  static Future<ManifestStore?> loadFromBytes({
     required final List<int> fileBytes,
     required final String format,
     final String? trustAnchorsPem,
-  }) {
-    final json = getManifestJsonFromBytes(
+  }) async {
+    final json = await getManifestJsonFromBytes(
       fileBytes: fileBytes,
       format: format,
       trustAnchorsPem: trustAnchorsPem,

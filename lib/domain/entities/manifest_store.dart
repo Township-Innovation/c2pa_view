@@ -100,11 +100,11 @@ class ManifestStore extends Equatable {
   /// trust list (concatenated C2PA CA + TSA PEM bundle from
   /// `TrustListService`); otherwise the underlying `c2pa-rs` defaults
   /// are used and certificates report as `untrusted`.
-  static ManifestStore? fromLocalPath(
+  static Future<ManifestStore?> fromLocalPath(
     final String localPath, {
     final String? trustAnchorsPem,
-  }) {
-    final manifestJson = getManifestJsonFromFile(
+  }) async {
+    final manifestJson = await getManifestJsonFromFile(
       localPath,
       trustAnchorsPem: trustAnchorsPem,
     );
@@ -136,12 +136,12 @@ class ManifestStore extends Equatable {
   /// Creates a ManifestStore from raw bytes.
   ///
   /// See [fromLocalPath] for the meaning of [trustAnchorsPem].
-  static ManifestStore? fromBytes(
+  static Future<ManifestStore?> fromBytes(
     final List<int> fileBytes,
     final String format, {
     final String? trustAnchorsPem,
-  }) {
-    final manifestJson = getManifestJsonFromBytes(
+  }) async {
+    final manifestJson = await getManifestJsonFromBytes(
       fileBytes: fileBytes,
       format: format,
       trustAnchorsPem: trustAnchorsPem,

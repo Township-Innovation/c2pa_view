@@ -24,6 +24,7 @@
 use c2pa_view::api::c2pa::{
     get_manifest_with_trust_validation, get_manifest_with_validation,
 };
+use pollster::FutureExt as _;
 use std::fs;
 use std::path::{Path, PathBuf};
 
@@ -180,9 +181,9 @@ fn validate_file(path: &Path, trust_pem: Option<&str>) -> ValidationResult {
     println!("  Validating: {file_name} ({mime}, {} bytes)", bytes.len());
 
     let result = if let Some(pem) = trust_pem {
-        get_manifest_with_trust_validation(bytes, mime.to_string(), pem.to_string())
+        get_manifest_with_trust_validation(bytes, mime.to_string(), pem.to_string()).block_on()
     } else {
-        get_manifest_with_validation(bytes, mime.to_string())
+        get_manifest_with_validation(bytes, mime.to_string()).block_on()
     };
     let json_str = result
         .unwrap_or_else(|e| panic!("  API error for {file_name}: {e}"))

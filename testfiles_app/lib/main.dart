@@ -296,7 +296,7 @@ class _PopupDemoCardState extends State<_PopupDemoCard> {
   ) async {
     final response = await http.get(Uri.parse(url));
     final bytes = Uint8List.fromList(response.bodyBytes);
-    final store = ManifestStore.fromBytes(
+    final store = await ManifestStore.fromBytes(
       response.bodyBytes,
       format,
       trustAnchorsPem: trustAnchorsPem,
@@ -457,7 +457,7 @@ class _ManifestViewerPageState extends State<ManifestViewerPage> {
   ) async {
     final response = await http.get(Uri.parse(url));
     final bytes = Uint8List.fromList(response.bodyBytes);
-    final store = ManifestStore.fromBytes(
+    final store = await ManifestStore.fromBytes(
       response.bodyBytes,
       format,
       trustAnchorsPem: trustAnchorsPem,

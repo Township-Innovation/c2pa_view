@@ -35,10 +35,10 @@ void runManifestTest() {
 
     // Get manifest from file
     Map<String, dynamic> manifest = json.decode(
-      getManifestJsonFromBytes(
+      (await getManifestJsonFromBytes(
         fileBytes: response.bodyBytes,
         format: 'image/jpeg',
-      )!,
+      ))!,
     );
 
     // Check active manifest

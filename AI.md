@@ -61,16 +61,19 @@ lib/
 
 ### Rust Layer
 
-The `rust/` directory contains a Cargo crate (`cdylib` + `staticlib` + `lib`) that wraps `c2pa-rs`. Four sync FFI functions are exposed:
+The `rust/` directory contains a Cargo crate (`cdylib` + `staticlib` + `lib`) that wraps `c2pa-rs`. Eight async FFI functions are exposed on the Rust worker pool (no sync wire for parse/validate):
 
 | Function | Input | Output |
 |---|---|---|
 | `get_file_manifest` | bytes + file path | manifest JSON (MIME guessed from path) |
 | `get_file_manifest_format` | bytes + MIME type | manifest JSON |
 | `get_manifest_with_validation` | bytes + MIME type | manifest JSON with `validation_status` injected |
-| `get_manifest_with_validation_from_path` | bytes + file path | manifest JSON with `validation_status` injected |
+| `get_manifest_with_validation_from_path` | file path only | manifest JSON with `validation_status` injected |
+| `get_manifest_with_trust_validation` | bytes + MIME + trust PEM | trust-validated manifest JSON |
+| `get_manifest_with_trust_validation_from_path` | path + trust PEM | trust-validated manifest JSON |
+| `get_*_utf8` variants | bytes + format | UTF-8 JSON bytes (web-safe large returns) |
 
-The Dart-side `C2paBridgeService` and `ManifestStore` convenience constructors default to the validation-aware variants.
+Path-based entry points read the file on the Rust side; byte-based entry points remain for callers that only have in-memory bytes. The Dart-side `C2paBridgeService` and `ManifestStore.fromLocalPath` / `fromBytes` are async and await the bridge.
 
 ### Domain Entities
 

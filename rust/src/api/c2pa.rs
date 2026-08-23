@@ -1,20 +1,25 @@
 use c2pa::{Context, Reader, Settings};
 
-#[flutter_rust_bridge::frb(sync)]
-pub fn get_file_manifest(
+fn read_path_bytes(path: &str) -> Result<Vec<u8>, String> {
+    std::fs::read(path).map_err(|e| format!("failed to read {path}: {e}"))
+}
+
+fn mime_type_from_path(path: &str) -> Result<String, String> {
+    mime_guess::from_path(path)
+        .first()
+        .ok_or_else(|| format!("failed to guess MIME type for {path}"))
+        .map(|m| m.to_string())
+}
+
+pub async fn get_file_manifest(
     file_bytes: Vec<u8>,
     path: String,
 ) -> Result<Option<String>, String> {
-    let mime_type = mime_guess::from_path(path)
-        .first()
-        .ok_or("Failed to guess MIME type")?
-        .to_string();
-
-    get_file_manifest_format(file_bytes, mime_type)
+    let mime_type = mime_type_from_path(&path)?;
+    get_file_manifest_format(file_bytes, mime_type).await
 }
 
-#[flutter_rust_bridge::frb(sync)]
-pub fn get_file_manifest_format(
+pub async fn get_file_manifest_format(
     file_bytes: Vec<u8>,
     format: String,
 ) -> Result<Option<String>, String> {
@@ -46,12 +51,13 @@ pub fn get_file_manifest_format(
 
 /// UTF-8 JSON bytes for [`get_file_manifest_format`]. See
 /// [`get_manifest_with_validation_utf8`] for the web FRB rationale.
-#[flutter_rust_bridge::frb(sync)]
-pub fn get_file_manifest_format_utf8(
+pub async fn get_file_manifest_format_utf8(
     file_bytes: Vec<u8>,
     format: String,
 ) -> Result<Option<Vec<u8>>, String> {
-    Ok(get_file_manifest_format(file_bytes, format)?.map(|s| s.into_bytes()))
+    Ok(get_file_manifest_format(file_bytes, format)
+        .await?
+        .map(|s| s.into_bytes()))
 }
 
 /// Maps HTTP Content-Type values to a manifest-store MIME understood by c2pa-rs.
@@ -72,8 +78,7 @@ fn reader_manifest_json_value(reader: Reader) -> Result<serde_json::Value, Strin
     Ok(value)
 }
 
-#[flutter_rust_bridge::frb(sync)]
-pub fn get_manifest_with_validation(
+pub async fn get_manifest_with_validation(
     file_bytes: Vec<u8>,
     format: String,
 ) -> Result<Option<String>, String> {
@@ -92,8 +97,7 @@ pub fn get_manifest_with_validation(
 /// Web FRB sync can fail to decode very large [`String`] returns from WASM
 /// (Dart `TypeError` on DCO decode). Callers should `utf8.decode` on the VM
 /// or web.
-#[flutter_rust_bridge::frb(sync)]
-pub fn get_manifest_with_validation_utf8(
+pub async fn get_manifest_with_validation_utf8(
     file_bytes: Vec<u8>,
     format: String,
 ) -> Result<Option<Vec<u8>>, String> {
@@ -107,25 +111,19 @@ pub fn get_manifest_with_validation_utf8(
     }
 }
 
-#[flutter_rust_bridge::frb(sync)]
-pub fn get_manifest_with_validation_from_path(
-    file_bytes: Vec<u8>,
+pub async fn get_manifest_with_validation_from_path(
     path: String,
 ) -> Result<Option<String>, String> {
-    let mime_type = mime_guess::from_path(path)
-        .first()
-        .ok_or("Failed to guess MIME type")?
-        .to_string();
-
-    get_manifest_with_validation(file_bytes, mime_type)
+    let file_bytes = read_path_bytes(&path)?;
+    let mime_type = mime_type_from_path(&path)?;
+    get_manifest_with_validation(file_bytes, mime_type).await
 }
 
 /// Validate a C2PA asset against provided trust anchor PEM bundles.
 ///
 /// `trust_anchors_pem` should contain the C2PA Trust List and optionally
 /// the TSA Trust List concatenated as a single PEM bundle.
-#[flutter_rust_bridge::frb(sync)]
-pub fn get_manifest_with_trust_validation(
+pub async fn get_manifest_with_trust_validation(
     file_bytes: Vec<u8>,
     format: String,
     trust_anchors_pem: String,
@@ -165,17 +163,13 @@ pub fn get_manifest_with_trust_validation(
     }
 }
 
-/// Convenience wrapper that guesses MIME from file path.
-#[flutter_rust_bridge::frb(sync)]
-pub fn get_manifest_with_trust_validation_from_path(
-    file_bytes: Vec<u8>,
+/// Convenience wrapper that guesses MIME from file path and reads bytes on the
+/// Rust side.
+pub async fn get_manifest_with_trust_validation_from_path(
     path: String,
     trust_anchors_pem: String,
 ) -> Result<Option<String>, String> {
-    let mime_type = mime_guess::from_path(path)
-        .first()
-        .ok_or("Failed to guess MIME type")?
-        .to_string();
-
-    get_manifest_with_trust_validation(file_bytes, mime_type, trust_anchors_pem)
+    let file_bytes = read_path_bytes(&path)?;
+    let mime_type = mime_type_from_path(&path)?;
+    get_manifest_with_trust_validation(file_bytes, mime_type, trust_anchors_pem).await
 }

@@ -234,7 +234,7 @@ void main() {
         final expectedState = expectedMap['validation_state'];
         expect(expectedState, isA<String>());
 
-        final trustJson = getManifestJsonFromBytes(
+        final trustJson = await getManifestJsonFromBytes(
           fileBytes: bytes,
           format: mime,
           trustAnchorsPem: trustPem,
@@ -247,7 +247,7 @@ void main() {
           reason: 'validation_state mismatch for $filename',
         );
 
-        final store = ManifestStore.fromBytes(
+        final store = await ManifestStore.fromBytes(
           bytes,
           mime,
           trustAnchorsPem: trustPem,

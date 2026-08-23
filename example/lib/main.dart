@@ -414,11 +414,6 @@ class _ManifestViewScaffold extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final mimeType = mimeTypeForFileName(fileName);
-    final store = ManifestStore.fromBytes(
-      fileBytes,
-      mimeType,
-      trustAnchorsPem: trustList.trustAnchorsPem,
-    );
 
     return Scaffold(
       appBar: AppBar(
@@ -433,7 +428,21 @@ class _ManifestViewScaffold extends StatelessWidget {
         children: [
           if (initError != null) RustInitErrorBanner(message: initError!),
           _TrustListBanner(service: trustList, error: trustListError),
-          Expanded(child: _buildBody(context, store, mimeType)),
+          Expanded(
+            child: FutureBuilder<ManifestStore?>(
+              future: ManifestStore.fromBytes(
+                fileBytes,
+                mimeType,
+                trustAnchorsPem: trustList.trustAnchorsPem,
+              ),
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+                return _buildBody(context, snapshot.data, mimeType);
+              },
+            ),
+          ),
         ],
       ),
     );
