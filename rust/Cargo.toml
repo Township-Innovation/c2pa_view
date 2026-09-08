@@ -7,7 +7,7 @@ edition = "2021"
 crate-type = ["cdylib", "staticlib", "lib"]
 
 [dependencies]
-c2pa = { path = "../../../forks/c2pa-rs/sdk", features = ["file_io", "rust_native_crypto"] }
+c2pa = { git = "https://github.com/in-reality/c2pa-rs", rev = "e88d06c807035a3285596f8646f4b9aea6c74e45", features = ["file_io", "rust_native_crypto"] }
 flutter_rust_bridge = "=2.12.0"
 mime_guess = "2.0.5"
 serde_json = "1"

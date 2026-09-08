@@ -92,10 +92,11 @@ Future<String?> getManifestJsonFromBytes({
   }
 }
 
-/// Reads a detached manifest **store** (e.g. L1 `GET /manifests/{hash}` CBOR).
+/// Reads a detached C2PA manifest **store** (JUMBF bytes, not embedded in media).
 ///
-/// Unlike [getManifestJsonFromBytes], does not treat [fileBytes] as the asset
-/// under validation — detached L1 manifest-store bytes skip data_hash binding.
+/// Unlike [getManifestJsonFromBytes], [fileBytes] is the manifest store itself,
+/// not the asset under validation. Verification settings disable post-read
+/// ingredient hash checks that assume an embedded asset payload.
 Future<String?> getManifestStoreJsonFromBytes({
   required final List<int> fileBytes,
   required final String format,

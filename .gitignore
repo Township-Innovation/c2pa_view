@@ -120,3 +120,7 @@ app.*.symbols
 !/dev/ci/**/Gemfile.lock
 
 .idea
+
+# Private planning docs (maintained outside the public package tree)
+AI.md
+MODERNIZATION_PLAN.md

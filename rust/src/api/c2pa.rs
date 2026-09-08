@@ -23,10 +23,9 @@ pub async fn get_file_manifest_format(
     file_bytes: Vec<u8>,
     format: String,
 ) -> Result<Option<String>, String> {
-    // L1 `GET /manifests/{hash}` returns detached manifest-store JUMBF bytes.
-    // Default Reader settings verify those bytes against ingredient data_hash
-    // bindings, which fails with "Hashes do not match" because the body is not
-    // the referenced media asset.
+    // Detached manifest-store JUMBF is not the referenced media asset. Default
+    // Reader settings would verify ingredient hash bindings against the stream
+    // body and fail with "Hashes do not match".
     let settings_json = serde_json::json!({
         "verify": {
             "verify_after_reading": false,

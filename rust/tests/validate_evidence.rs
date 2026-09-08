@@ -1,25 +1,22 @@
-//! Integration tests that validate the C2PA conformance evidence corpus through
+//! Integration tests that validate a C2PA evidence corpus through
 //! `c2pa_view`'s `get_manifest_with_validation` API.
 //!
-//! The tests read `EVIDENCE_DIR` (env var, defaults to `<repo>/c2pa/evidence/`)
-//! and cover:
+//! Set `EVIDENCE_DIR` to the corpus root. The suite covers:
 //!
 //! 1. **Generator outputs** — `generator-<platform>/samples/`: signed files must
-//!    have `active_manifest`, `claim_generator_info[0].name == "inreality-capture"`,
-//!    and only `signingCredential.untrusted` in `validation_status` (our test CA
-//!    is not on the public C2PA trust list).
+//!    have `active_manifest`. When `C2PA_EXPECTED_GENERATOR_NAME` is set, the
+//!    active manifest's `claim_generator_info[0].name` must match.
 //! 2. **Conformance corpus** — `validator/conformance-samples/`: C2PA program
 //!    sample media. Manifests may show `signingCredential.untrusted` and/or
 //!    `signingCredential.expired` when no trust list is applied.
-//! 3. **Additional samples** — `validator/additional-samples/`: InReality-supplied
-//!    media that is not in the published conformance corpus (currently a single
-//!    HEIC sample). Validated through the same trust-checked path as (2).
+//! 3. **Additional samples** — `validator/additional-samples/`: extra media not
+//!    in the published conformance corpus. Validated through the same path as (2).
 //!
 //! When `C2PA_TRUST_ANCHORS_PEM` points to a PEM bundle file, the tests run
-//! through `get_manifest_with_trust_validation` instead, exercising the
-//! production verify path against the official C2PA CA + TSA trust lists.
+//! through `get_manifest_with_trust_validation` instead.
 //!
-//! Logs are written to `validator_utility/c2pa_view_*.json`.
+//! Logs are written to `validator_utility/c2pa_view_*.json` under the evidence
+//! tree unless `C2PA_VIEW_LOGS_DIR` overrides the output directory.
 
 use c2pa_view::api::c2pa::{
     get_manifest_with_trust_validation, get_manifest_with_validation,
@@ -28,35 +25,22 @@ use pollster::FutureExt as _;
 use std::fs;
 use std::path::{Path, PathBuf};
 
-fn evidence_dir() -> PathBuf {
-    if let Ok(dir) = std::env::var("EVIDENCE_DIR") {
-        PathBuf::from(dir)
-    } else {
-        let manifest_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
-        manifest_dir
-            .parent()
-            .unwrap()
-            .parent()
-            .unwrap()
-            .parent()
-            .unwrap()
-            .join("c2pa")
-            .join("evidence")
-    }
+fn evidence_dir() -> Option<PathBuf> {
+    std::env::var("EVIDENCE_DIR")
+        .ok()
+        .filter(|s| !s.is_empty())
+        .map(PathBuf::from)
 }
 
-fn logs_dir() -> PathBuf {
+fn logs_dir(evidence: &Path) -> PathBuf {
     if let Ok(dir) = std::env::var("C2PA_VIEW_LOGS_DIR") {
         PathBuf::from(dir)
     } else {
-        evidence_dir().join("validator_utility")
+        evidence.join("validator_utility")
     }
 }
 
 /// Read the trust anchor PEM bundle from `C2PA_TRUST_ANCHORS_PEM` when set.
-///
-/// The variable points to a single file containing the concatenated C2PA CA
-/// and TSA trust list PEMs (matching `TrustListService.trustAnchorsPem`).
 fn trust_anchors_pem() -> Option<String> {
     let path = std::env::var("C2PA_TRUST_ANCHORS_PEM").ok()?;
     let path = PathBuf::from(path);
@@ -69,6 +53,12 @@ fn trust_anchors_pem() -> Option<String> {
         return None;
     }
     fs::read_to_string(&path).ok().filter(|s| !s.trim().is_empty())
+}
+
+fn expected_generator_name() -> Option<String> {
+    std::env::var("C2PA_EXPECTED_GENERATOR_NAME")
+        .ok()
+        .filter(|s| !s.is_empty())
 }
 
 const MEDIA_EXTENSIONS: &[&str] = &[
@@ -120,8 +110,8 @@ fn collect_signed_assets(dir: &Path) -> Vec<PathBuf> {
     files
 }
 
-/// All `generator-<platform>/samples/` directories.
-fn collect_inreality_signed_samples(evidence: &Path) -> Vec<PathBuf> {
+/// All `generator-<platform>/samples/` directories under [evidence].
+fn collect_generator_signed_samples(evidence: &Path) -> Vec<PathBuf> {
     let mut files = Vec::new();
     let Ok(entries) = fs::read_dir(evidence) else {
         return files;
@@ -218,32 +208,33 @@ fn save_log(logs_dir: &Path, id: &str, json: &serde_json::Value) {
     });
 }
 
-// The InReality test CA is not on the public C2PA trust list, so signed
-// generator samples surface as `untrusted` regardless of whether the trust
-// list is configured. Either status is acceptable for these tests.
+// Test signing CAs that are not on the public C2PA trust list surface as
+// `untrusted` regardless of whether a trust list is configured.
 const ALLOWED_UNTRUSTED_STATUSES: &[&str] = &[
     "signingCredential.untrusted",
     "signingCredential.trusted",
 ];
 
-// Conformance corpus: may include trust/CN issues, expired certs, and edge-case
-// assets that intentionally surface validation errors (e.g. *stripped* JPEGs with
-// `assertion.dataHash.mismatch`). We only require that a manifest is present and
-// the API returns well-formed JSON.
-
 #[test]
 fn validate_signed_files() {
-    let edir = evidence_dir();
-    let logs_dir = logs_dir();
+    let Some(edir) = evidence_dir() else {
+        println!("Skipping validate_signed_files: EVIDENCE_DIR not set");
+        return;
+    };
+    let logs_dir = logs_dir(&edir);
     let trust_pem = trust_anchors_pem();
+    let expected_generator = expected_generator_name();
 
-    println!("\n=== c2pa_view: generator-*/samples/ (InReality Capture) ===\n");
+    println!("\n=== c2pa_view: generator-*/samples/ ===\n");
     println!(
         "  Trust list: {}",
         if trust_pem.is_some() { "configured" } else { "default (none)" }
     );
+    if let Some(name) = &expected_generator {
+        println!("  Expected generator name: {name}");
+    }
 
-    let files = collect_inreality_signed_samples(&edir);
+    let files = collect_generator_signed_samples(&edir);
     assert!(
         !files.is_empty(),
         "No signed files under generator-*/samples/ in {}",
@@ -263,22 +254,27 @@ fn validate_signed_files() {
             result.file_name
         );
 
-        let manifests = result.json.get("manifests").and_then(|m| m.as_object());
-        let active_id = result
-            .json
-            .get("active_manifest")
-            .and_then(|a| a.as_str())
-            .unwrap_or("");
-        if let Some(manifest) = manifests.and_then(|ms| ms.get(active_id)) {
-            let gen_name = manifest
-                .pointer("/claim_generator_info/0/name")
-                .and_then(|n| n.as_str())
+        if let Some(expected) = &expected_generator {
+            let manifests = result.json.get("manifests").and_then(|m| m.as_object());
+            let active_id = result
+                .json
+                .get("active_manifest")
+                .and_then(|a| a.as_str())
                 .unwrap_or("");
-            assert_eq!(
-                gen_name, "inreality-capture",
-                "Wrong claim_generator name in {}: {gen_name}",
-                result.file_name
-            );
+            if let Some(manifest) = manifests.and_then(|ms| ms.get(active_id)) {
+                let gen_name = manifest
+                    .pointer("/claim_generator_info/0/name")
+                    .and_then(|n| n.as_str())
+                    .unwrap_or("");
+                if gen_name != expected {
+                    let msg = format!(
+                        "Wrong claim_generator name in {}: expected {expected}, got {gen_name}",
+                        result.file_name
+                    );
+                    eprintln!("  FAIL: {msg}");
+                    failures.push(msg);
+                }
+            }
         }
 
         let unexpected: Vec<&String> = result
@@ -308,8 +304,11 @@ fn validate_signed_files() {
 
 #[test]
 fn validate_conformance_samples() {
-    let edir = evidence_dir();
-    let logs_dir = logs_dir();
+    let Some(edir) = evidence_dir() else {
+        println!("Skipping validate_conformance_samples: EVIDENCE_DIR not set");
+        return;
+    };
+    let logs_dir = logs_dir(&edir);
     let validator_dir = edir.join("validator");
     let conf_dir = validator_dir.join("conformance-samples");
     let extra_dir = validator_dir.join("additional-samples");
